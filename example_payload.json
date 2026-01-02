@@ -1,0 +1,22 @@
+{
+    "title": "Airdrop Alpha Live!",
+    "content": "The claim portal for the Airdrop Alpha is now open. Visit the official site to check your eligibility.\n\n**Note:** Never share your seed phrase.",
+    "globalRoleId": "123456789012345678",
+    "prompt": "Attention Guardians!",
+    "imageDataURI": null,
+    "channels": [
+        {
+            "channelId": "100000000000000001",
+            "tagIds": [
+                "200000000000000001",
+                "200000000000000002"
+            ],
+            "roleId": null
+        },
+        {
+            "channelId": "100000000000000002",
+            "tagIds": [],
+            "roleId": "123456789012345679"
+        }
+    ]
+}

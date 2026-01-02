@@ -1,138 +1,70 @@
-<div align="center">
+# 🛰️ Airdrop Commander - Junior Kai
 
-  <img src="./Screenshots/logo.png" alt="Expense Tracker Pro Logo" width="120" style="border-radius: 20px" />
+![Version](https://img.shields.io/badge/version-1.2.0-blueviolet)
+![Discord.py](https://img.shields.io/badge/Discord.py-2.6.4-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.128.0-green)
+![License](https://img.shields.io/badge/license-MIT-success)
 
-  # 💎 Expense Tracker Pro
-  **A Premium, OLED-Ready Financial Ecosystem for Modern Mobility**
-
-  [![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/)
-  [![Expo](https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
-  [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-  [![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-  <br/>
-  [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/HemachandRavulapalli/Expense-Tracker/graphs/commit-activity)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-</div>
+**Airdrop Commander** (codenamed *Junior Kai*) is a high-performance Discord dispatch tool built for alpha callers, community managers, and project leads. It allows for seamless, instantaneous message distribution across multiple servers, channels, and forum threads with a premium glassmorphic interface.
 
 ---
 
-## 🚀 Overview
+## � Visual Excellence
+*   **💎 Glassmorphism Dashboard**: A stunning, modern UI that feels premium and responsive.
+*   **👁️ Live Discord Preview**: See exactly how your message will look on Discord (including embeds and images) before you hit dispatch.
+*   **� Mission Control**: Real-time progress bars and logs tracking every successful delivery.
 
-**Expense Tracker Pro** is a sophisticated financial management solution built for the modern user. Ditching the generic "spreadsheet" look, we've engineered a high-performance mobile application that focuses on **Aesthetics, Security, and Longevity**.
-
-Built with the **MERN Stack**, it features a true OLED-optimized interface, bank-grade authentication, and intelligent data visualization.
-
----
-
-## ✨ Premium Features
-
-### 🎨 Visual Excellence
-- **OLED Dark Mode**: True black design (#000000) for maximum battery efficiency and eye comfort.
-- **Glassmorphic Elements**: Subtle transulency and smooth gradients for a premium feel.
-- **Smooth Animations**: 60fps transitions powered by `react-native-reanimated` and `react-native-gesture-handler`.
-
-### 🔐 Advanced Security & Sessions
-- **30-Day Sessions**: Extended JWT lifespan reduces annoying frequent logouts.
-- **Silent Refresh**: Automatic background token rotation every time you open the app.
-- **Biometric Ready**: Architecture prepared for secure, rapid access.
-
-### 📊 Smart Finance
-- **Interactive Analytics**: Dynamic Pie Charts and lists that update in real-time.
-- **Granular Budgeting**: Set monthly overall limits or specific category-wise budgets.
-- **Budget Alerts**: Local notifications keep you informed before you overspend.
+## 🚀 Core Features
+- **🛰️ Server Explorer Deep-Scan**: Browse all your servers, text channels, and forum threads directly from the dashboard.
+- **✅ Multi-Selection**: Pick specific target channels using checkboxes or use the "Select All Visible" master toggle.
+- **🏷️ Smart Forum Tagging**: Automatically detects forum project tags and allows you to sync them by name across different servers.
+- **� Role Memory**: Remembers the specific ping role for every unique server, automating your workflow over time.
+- **📁 Advanced Presets**: Save complex multi-server configurations to the server and load or delete them with a single click.
+- **�️ Rich Embed Support**: Customize embed colors and drag-and-drop images for high-impact announcements.
 
 ---
 
-## 📸 App Showcase
+## �️ Installation & Setup
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <img src="./Screenshots/login.png" width="220" alt="Login" /><br />
-        <sub><b>Premium Entry</b></sub>
-      </td>
-      <td align="center">
-        <img src="./Screenshots/signup.png" width="220" alt="Signup" /><br />
-        <sub><b>Secure Auth</b></sub>
-      </td>
-      <td align="center">
-        <img src="./Screenshots/Dashboard.png" width="220" alt="Dashboard" /><br />
-        <sub><b>Analytics</b></sub>
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <img src="./Screenshots/Drawer.png" width="220" alt="Drawer" /><br />
-        <sub><b>Dynamic Menu</b></sub>
-      </td>
-      <td align="center">
-        <img src="./Screenshots/Add.png" width="220" alt="Add Expense" /><br />
-        <sub><b>Quick Entry</b></sub>
-      </td>
-      <td align="center">
-        <img src="./Screenshots/settings.png" width="220" alt="Settings" /><br />
-        <sub><b>Smart Limits</b></sub>
-      </td>
-    </tr>
-  </table>
-</div>
+### 1. Prerequisites
+- Python 3.11+
+- Discord Bot Token (with Message Content Intent enabled)
 
----
-
-## 🛠️ Technical Architecture
-
-### **Frontend Mobility**
-- **Framework**: Expo SDK 54 (Latest)
-- **Engine**: React Native 0.81 (New Architecture Enabled)
-- **Navigation**: React Navigation v7 (Stack, Tabs, & Drawer)
-- **State**: React Context API with persistent AsyncStorage.
-
-### **Backend Infrastructure**
-- **Language**: Node.js & Express
-- **Database**: MongoDB (NoSQL) for flexible schema.
-- **Auth**: JWT with `bcryptjs` hashing.
-- **Hosting**: Prepared for Vercel/Render deployment.
-
----
-
-## ⚙️ Installation & Setup
-
-### **1. Clone the Source**
+### 2. Clone & Install
 ```bash
-git clone https://github.com/HemachandRavulapalli/Expense-Tracker.git
-cd Expense-Tracker
+git clone https://github.com/yourusername/Airdrop-Commander.git
+cd Airdrop-Commander
+pip install discord.py fastapi uvicorn pydantic
 ```
 
-### **2. Backend ignition**
-```bash
-cd backend
-npm install
-# Create .env with MONGO_URI and JWT_SECRET
-npm start
+### 3. Environment Configuration
+Create a `.env` file in the root directory:
+```env
+DISCORD_BOT_TOKEN=your_token_here
 ```
 
-### **3. Mobile Bootup**
+### 4. Launch
 ```bash
-cd mobile-app
-npm install
-npx expo start --go
+python bot_api.py
 ```
+Then navigate to `http://localhost:8000` in your browser.
 
 ---
 
-## 🌍 Connect With Me
-
-<div align="center">
-
-**Hemachand Ravulapalli**
-
-[![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://github.com/HemachandRavulapalli)
-[![LinkedIn](https://img.shields.io/badge/linkedin-%230077B5.svg?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/rhemachand/)
+## 📡 Tech Stack
+- **Backend**: Python 3.11 with `FastAPI` & `Uvicorn`
+- **Discord Integration**: `Discord.py` (Asynchronous Gateway)
+- **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
+- **Design System**: Glassmorphism with Antigravity animations
+- **Persistence**: Local JSON storage for presets and memory
 
 ---
-  
-<sub>Built with precision for the next generation of financial tracking.</sub>
 
-</div>
+## 🤝 Contributing
+Contributions are welcome! Please open an issue or submit a pull request for any features or bug fixes.
+
+## 📜 License
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+*Built for the next generation of Web3 community management.* 🛰️🚀
