@@ -1,70 +1,119 @@
-# 🛰️ Airdrop Commander - Junior Kai
+<div align="center">
 
-![Version](https://img.shields.io/badge/version-1.2.0-blueviolet)
-![Discord.py](https://img.shields.io/badge/Discord.py-2.6.4-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.128.0-green)
-![License](https://img.shields.io/badge/license-MIT-success)
+# 🛰️ Airdrop Commander
+## *Professional Multi-Server Dispatch Logic for Alpha Communities*
 
-**Airdrop Commander** (codenamed *Junior Kai*) is a high-performance Discord dispatch tool built for alpha callers, community managers, and project leads. It allows for seamless, instantaneous message distribution across multiple servers, channels, and forum threads with a premium glassmorphic interface.
-
----
-
-## � Visual Excellence
-*   **💎 Glassmorphism Dashboard**: A stunning, modern UI that feels premium and responsive.
-*   **👁️ Live Discord Preview**: See exactly how your message will look on Discord (including embeds and images) before you hit dispatch.
-*   **� Mission Control**: Real-time progress bars and logs tracking every successful delivery.
-
-## 🚀 Core Features
-- **🛰️ Server Explorer Deep-Scan**: Browse all your servers, text channels, and forum threads directly from the dashboard.
-- **✅ Multi-Selection**: Pick specific target channels using checkboxes or use the "Select All Visible" master toggle.
-- **🏷️ Smart Forum Tagging**: Automatically detects forum project tags and allows you to sync them by name across different servers.
-- **� Role Memory**: Remembers the specific ping role for every unique server, automating your workflow over time.
-- **📁 Advanced Presets**: Save complex multi-server configurations to the server and load or delete them with a single click.
-- **�️ Rich Embed Support**: Customize embed colors and drag-and-drop images for high-impact announcements.
+[![Version](https://img.shields.io/badge/version-1.2.0-blueviolet?style=for-the-badge)](https://github.com/HemachandRavulapalli/Discord-Airdrop-Bot)
+[![Discord.py](https://img.shields.io/badge/Discord.py-2.6.4-blue?style=for-the-badge&logo=discord)](https://discordpy.readthedocs.io/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.128.0-green?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 
 ---
 
-## �️ Installation & Setup
+A high-performance Discord airdrop dispatch tool designed for alpha callers and community managers. Dispatch rich announcements, images, and forum threads across multiple servers simultaneously with real-time tracking.
 
-### 1. Prerequisites
-- Python 3.11+
-- Discord Bot Token (with Message Content Intent enabled)
+[Explore Docs](#-getting-started) • [View Features](#-key-features) • [Report Bug](https://github.com/HemachandRavulapalli/Discord-Airdrop-Bot/issues)
 
-### 2. Clone & Install
+</div>
+
+---
+
+## 📖 Table of Contents
+- [✨ Key Features](#-key-features)
+- [🛰️ Mission Control Explorer](#️-mission-control-explorer)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [🚀 Getting Started](#-getting-started)
+- [⚙️ Configuration](#️-configuration)
+- [📁 Preset Management](#-preset-management)
+- [📜 License](#-license)
+
+---
+
+## ✨ Key Features
+
+#### 💎 Premium UI/UX
+Sleek glassmorphism interface with live preview, progress tracking, and interactive mission logs.
+
+#### 🛰️ Mission Control
+Real-time logging and per-channel status updates during dispatch missions. Track your "Mission Accomplished" status live.
+
+#### 🏷️ Visual Forum Tags
+Scans Forum channels and lets you choose project tags (Announcement, Live, etc.) via clickable chips.
+
+#### 🪄 Magic Sync
+Automatically matches and selects tags across multiple servers based on their names. Pick one, sync them all.
+
+#### 👤 Smart Role Memory
+The bot **remembers** which ping role you use for each unique server and automatically reapplies it in future missions.
+
+#### 🖼️ Rich Embeds
+Full support for custom embed colors and drag-and-drop image attachments for maximum impact.
+
+---
+
+## 🛰️ Mission Control Explorer
+
+The **Server Explorer** has been completely reinvented for speed:
+- **🔍 Deep Search**: Filter through hundreds of servers and channels instantly.
+- **✅ Multi-Select Checkboxes**: Manually pick your targets or Use "Select All Visible" for bulk operations.
+- **📂 Thread Discovery**: Automatically finds active threads or creates new ones in Forum channels.
+
+---
+
+## 🛠️ Tech Stack
+
+| Component | Technology | Use Case |
+| :--- | :--- | :--- |
+| **Backend** | Python / FastAPI | High-concurrency mission handling |
+| **Discord** | Discord.py | Asynchronous gateway interactions |
+| **Frontend** | Vanilla JS / CSS3 | Premium Glassmorphic Dashboard |
+| **Logic** | Asynchronous Tasks | Background project dispatching |
+
+---
+
+## 🚀 Getting Started
+
+### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/yourusername/Airdrop-Commander.git
-cd Airdrop-Commander
-pip install discord.py fastapi uvicorn pydantic
+git clone https://github.com/HemachandRavulapalli/Discord-Airdrop-Bot.git
+cd Discord-Airdrop-Bot
 ```
 
-### 3. Environment Configuration
-Create a `.env` file in the root directory:
-```env
-DISCORD_BOT_TOKEN=your_token_here
-```
-
-### 4. Launch
+### 2️⃣ Install Dependencies
 ```bash
-python bot_api.py
+pip install -U discord.py fastapi uvicorn pydantic
 ```
-Then navigate to `http://localhost:8000` in your browser.
+
+### 3️⃣ Launch the Commander
+Run the PowerShell helper:
+```bash
+./run.ps1
+```
+*Or run directly:* `python bot_api.py`
 
 ---
 
-## 📡 Tech Stack
-- **Backend**: Python 3.11 with `FastAPI` & `Uvicorn`
-- **Discord Integration**: `Discord.py` (Asynchronous Gateway)
-- **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
-- **Design System**: Glassmorphism with Antigravity animations
-- **Persistence**: Local JSON storage for presets and memory
+## ⚙️ Configuration
+
+Airdrop Commander uses a `.env` file for secure token management.
+1. Create a `.env` file in the root.
+2. Add your token: `DISCORD_BOT_TOKEN=your_token_here`
 
 ---
 
-## 🤝 Contributing
-Contributions are welcome! Please open an issue or submit a pull request for any features or bug fixes.
+## 📁 Preset Management
+
+Save complex mission configurations as **Presets**.
+- **💾 Save**: Store channel sets, tags, and role configurations.
+- **📂 Load**: Rapidly switch between different mission targets.
+- **🗑️ Delete**: Clean up old configuration data from the server.
+
+---
 
 ## 📜 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
-*Built for the next generation of Web3 community management.* 🛰️🚀
+
+<div align="center">
+Built with ❤️ for the Alpha Community. 🛰️🚀
+</div>
