@@ -6,7 +6,7 @@ if (Test-Path ".env") {
             $key = $key.Trim()
             $value = $value.Trim().Trim('"').Trim("'")
             if (-not [string]::IsNullOrWhiteSpace($key)) {
-                $env:$key = $value
+                Set-Item -Path "Env:$key" -Value $value
             }
         }
     }

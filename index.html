@@ -724,12 +724,53 @@
 
         const dz = document.getElementById('dropZone');
         dz.onclick = () => document.getElementById('fileInput').click();
+        
+        // Handle File Input Selection
         document.getElementById('fileInput').onchange = (e) => {
-            const f = e.target.files[0];
-            const r = new FileReader();
-            r.onload = (ev) => { imageDataURI = ev.target.result; document.getElementById('imagePreview').src = imageDataURI; document.getElementById('imagePreview').style.display = 'block'; document.getElementById('dropText').style.display = 'none'; updatePreview(); };
-            r.readAsDataURL(f);
+            handleImageFile(e.target.files[0]);
         };
+
+        // Handle Paste (Ctrl+V)
+        document.addEventListener('paste', (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (const item of items) {
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    handleImageFile(item.getAsFile());
+                }
+            }
+        });
+
+        // Handle Drag & Drop
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dz.classList.add('dragover');
+        });
+
+        window.addEventListener('dragleave', () => {
+            dz.classList.remove('dragover');
+        });
+
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dz.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleImageFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        function handleImageFile(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const r = new FileReader();
+            r.onload = (ev) => { 
+                imageDataURI = ev.target.result; 
+                document.getElementById('imagePreview').src = imageDataURI; 
+                document.getElementById('imagePreview').style.display = 'block'; 
+                document.getElementById('dropText').style.display = 'none'; 
+                updatePreview(); 
+            };
+            r.readAsDataURL(file);
+        }
+
 
         function addChannel() { channels.push({ id: Date.now(), nickname: '', channelId: '', tagIds: [], available_tags: [], available_roles: [], roleId: '', guildId: '', status: 'idle' }); renderChannels(); saveToLocalStorage(); }
         function removeChannel(id) { channels = channels.filter(c => c.id !== id); renderChannels(); saveToLocalStorage(); }
