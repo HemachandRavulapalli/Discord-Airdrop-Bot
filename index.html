@@ -722,16 +722,88 @@
             if (imageDataURI) { img.src = imageDataURI; img.style.display = 'block'; } else img.style.display = 'none';
         }
 
+        // Image History Management
+        let imageHistory = [null];
+        let historyIndex = 0;
+
+        function saveImageToHistory(data) {
+            // If we are not at the end of history, truncate it
+            if (historyIndex < imageHistory.length - 1) {
+                imageHistory = imageHistory.slice(0, historyIndex + 1);
+            }
+            imageHistory.push(data);
+            historyIndex++;
+            applyImageFromHistory();
+        }
+
+        function undoImage() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                applyImageFromHistory();
+            }
+        }
+
+        function redoImage() {
+            if (historyIndex < imageHistory.length - 1) {
+                historyIndex++;
+                applyImageFromHistory();
+            }
+        }
+
+        function deleteImage() {
+            if (imageDataURI !== null) {
+                saveImageToHistory(null);
+            }
+        }
+
+        function applyImageFromHistory() {
+            imageDataURI = imageHistory[historyIndex];
+            const imgPreview = document.getElementById('imagePreview');
+            const dropText = document.getElementById('dropText');
+
+            if (imageDataURI) {
+                imgPreview.src = imageDataURI;
+                imgPreview.style.display = 'block';
+                dropText.style.display = 'none';
+            } else {
+                imgPreview.src = '';
+                imgPreview.style.display = 'none';
+                dropText.style.display = 'block';
+            }
+            updatePreview();
+        }
+
+        // Global Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger if user is typing in an input or textarea
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // Undo: Ctrl + Z
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undoImage();
+            }
+            // Redo: Ctrl + Y or Ctrl + Shift + Z
+            if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+                e.preventDefault();
+                redoImage();
+            }
+            // Delete: Delete or Backspace
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                deleteImage();
+            }
+        });
+
         const dz = document.getElementById('dropZone');
         dz.onclick = () => document.getElementById('fileInput').click();
-        
-        // Handle File Input Selection
+
         document.getElementById('fileInput').onchange = (e) => {
             handleImageFile(e.target.files[0]);
         };
 
         // Handle Paste (Ctrl+V)
         document.addEventListener('paste', (e) => {
+            // Special handling for paste: if it's an image, we save it to history
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for (const item of items) {
                 if (item.kind === 'file' && item.type.startsWith('image/')) {
@@ -761,15 +833,12 @@
         function handleImageFile(file) {
             if (!file || !file.type.startsWith('image/')) return;
             const r = new FileReader();
-            r.onload = (ev) => { 
-                imageDataURI = ev.target.result; 
-                document.getElementById('imagePreview').src = imageDataURI; 
-                document.getElementById('imagePreview').style.display = 'block'; 
-                document.getElementById('dropText').style.display = 'none'; 
-                updatePreview(); 
+            r.onload = (ev) => {
+                saveImageToHistory(ev.target.result);
             };
             r.readAsDataURL(file);
         }
+
 
 
         function addChannel() { channels.push({ id: Date.now(), nickname: '', channelId: '', tagIds: [], available_tags: [], available_roles: [], roleId: '', guildId: '', status: 'idle' }); renderChannels(); saveToLocalStorage(); }
