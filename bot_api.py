@@ -262,18 +262,21 @@ async def get_channel_threads(channel_id: int):
             return []
             
         threads = []
-        # Active threads
-        for t in channel.threads:
-            threads.append({"name": t.name, "id": str(t.id)})
+        # Use guild.active_threads to get ALL active threads, then filter for this channel
+        guild_active = await channel.guild.active_threads()
+        for t in guild_active:
+            if t.parent_id == channel.id:
+                threads.append({"name": t.name, "id": str(t.id)})
             
-        # Archived threads (Forums and Text Channels)
+        # Aggressively fetch archived threads (increased limit to 200)
         if isinstance(channel, (discord.ForumChannel, discord.TextChannel)):
-            async for t in channel.archived_threads(limit=50):
+            async for t in channel.archived_threads(limit=200):
                 if not any(x["id"] == str(t.id) for x in threads):
                     threads.append({"name": t.name, "id": str(t.id)})
                     
         return threads
     except Exception as e:
+        print(f"[Error] fetch_threads failed: {e}")
         raise HTTPException(status_code=404, detail=str(e))
 
 @app.get("/tags/{channel_id}")
