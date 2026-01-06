@@ -270,24 +270,38 @@ async def get_channel_threads(channel_id: int):
                     threads.append({"name": t.name, "id": str(t.id)})
         except: pass
             
-        # Aggressively fetch ALL archived threads (No Limit)
-        # Scan Public Archives
+        threads = []
+        # 1. Fetch ALL active threads (Live API call)
         try:
+            guild_active = await channel.guild.active_threads()
+            for t in guild_active:
+                if t.parent_id == channel.id:
+                    threads.append({"name": t.name, "id": str(t.id)})
+            print(f"✅ Found {len(threads)} active threads in #{channel.name}")
+        except Exception as e:
+            print(f"⚠️ Active thread scan failed for {channel.name}: {e}")
+            
+        # 2. Fetch EVERY Public Archived Thread (No Limit)
+        try:
+            print(f"🔍 Deep scanning public archives for #{channel.name}...")
             async for t in channel.archived_threads(limit=None, public=True):
                 if not any(x["id"] == str(t.id) for x in threads):
                     threads.append({"name": t.name, "id": str(t.id)})
         except Exception as e:
-            print(f"[Warning] Public archive scan failed for {channel.name}: {e}")
+            print(f"⚠️ Public archive scan failed for {channel.name}: {e}")
         
-        # Scan Private Archives
+        # 3. Fetch EVERY Private Archived Thread (No Limit)
         try:
+            print(f"🔍 Deep scanning private archives for #{channel.name}...")
+            # For private archives, if it's not a text channel it might fail, gracefully handle
             async for t in channel.archived_threads(limit=None, private=True):
                 if not any(x["id"] == str(t.id) for x in threads):
                     threads.append({"name": t.name, "id": str(t.id)})
         except Exception as e:
-            print(f"[Warning] Private archive scan failed for {channel.name}: {e}")
+            # This often fails on Forum channels (no private threads) or missing perms
+            pass
                     
-        print(f"📡 Found {len(threads)} threads for #{channel.name}")
+        print(f"🏁 Total discovery for #{channel.name}: {len(threads)} posts/threads")
         return threads
     except Exception as e:
         print(f"[Error] fetch_threads failed for {channel_id}: {e}")
@@ -370,6 +384,55 @@ async def delete_preset(name: str):
 @app.get("/logs")
 async def get_logs():
     return dispatch_logs
+
+@app.get("/search-all")
+async def search_all_threads(q: str = ""):
+    if not bot.is_ready():
+        raise HTTPException(status_code=503, detail="Bot not ready")
+    if not q:
+        return []
+        
+    q = q.lower()
+    results = []
+    
+    for guild in bot.guilds:
+        # 1. Search Active Threads (Fast)
+        try:
+            active = await guild.active_threads()
+            for t in active:
+                if q in t.name.lower():
+                    results.append({
+                        "id": str(t.id),
+                        "name": t.name,
+                        "guild": guild.name,
+                        "guild_id": str(guild.id),
+                        "parent_id": str(t.parent_id),
+                        "status": "active"
+                    })
+        except: pass
+        
+        # 2. Search Archived Threads (Aggressive Scan)
+        # To avoid timeouts, we scan channels that are most likely to have the post
+        for channel in guild.channels:
+            if isinstance(channel, (discord.TextChannel, discord.ForumChannel)):
+                try:
+                    # Search public archives
+                    async for t in channel.archived_threads(limit=100):
+                        if q in t.name.lower():
+                            if not any(r["id"] == str(t.id) for r in results):
+                                results.append({
+                                    "id": str(t.id),
+                                    "name": t.name,
+                                    "guild": guild.name,
+                                    "guild_id": str(guild.id),
+                                    "parent_id": str(t.parent_id),
+                                    "status": "historic"
+                                })
+                        if len(results) > 100: break # Safety break
+                except: pass
+            if len(results) > 100: break
+    
+    return results
 
 @app.get("/explore")
 async def explore_servers():

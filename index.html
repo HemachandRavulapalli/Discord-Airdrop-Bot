@@ -563,7 +563,9 @@
                     oninput="filterExplorer()" style="flex:1">
                 <button class="btn-primary" style="width:auto; padding:10px 20px; background:#238636"
                     onclick="bulkAddFiltered()">📑 Add Checked</button>
-                <button class="btn-secondary" onclick="scanAllArchives()" id="scanAllBtn">🔍 Deep Scan All</button>
+                <button class="btn-secondary" onclick="scanAllArchives()" id="scanAllBtn">🛰️ Scan All History</button>
+                <button class="btn-primary" style="background:#5865F2" onclick="deepSearch()" id="deepSearchBtn">🔍
+                    Global Archive Search</button>
             </div>
 
             <div style="display:flex; gap:10px; margin-bottom:15px; align-items: center; padding-left: 5px;">
@@ -577,6 +579,12 @@
                     <label for="explorerSelectAll" style="margin:0; cursor:pointer; white-space:nowrap;">Select
                         Visible</label>
                 </div>
+            </div>
+            <div id="globalSearchResults"
+                style="margin-bottom: 20px; display: none; background: rgba(88, 101, 242, 0.1); border: 1px dashed var(--accent-color); border-radius: 10px; padding: 15px;">
+                <div class="section-title" style="font-size: 0.9rem; color: var(--accent-color);">🔎 Global Search
+                    Results</div>
+                <div id="globalSearchList"></div>
             </div>
             <div id="explorerResults" style="margin-top: 10px;"></div>
         </div>
@@ -649,15 +657,15 @@
                     const rolesStr = JSON.stringify(g.roles || []).replace(/"/g, '&quot;');
                     const channelHTML = g.channels.map(c => {
                         const tagsStr = JSON.stringify(c.available_tags || []).replace(/"/g, '&quot;');
-                        const threadHTML = c.threads.map(t => `<div class="discovery-item explorer-item explorer-thread" style="margin-left:30px; display:none; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Thread)" data-guild="${g.name}" data-guild-id="${g.id}" data-roles="${rolesStr}">
+                        const threadHTML = c.threads.map(t => `<div class="discovery-item explorer-item explorer-thread" style="margin-left:30px; display:none; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Post)" data-guild="${g.name}" data-guild-id="${g.id}" data-roles="${rolesStr}">
                         <input type="checkbox" class="explorer-check" onclick="event.stopPropagation()">
-                        <div style="flex:1" onclick="addFoundChannel('${g.name}', '${t.id}', '${t.name} (Thread)', [], ${rolesStr}, '${g.id}')"><b>↪ ${t.name}</b> <span class="tag-badge">THREAD</span></div>
+                        <div style="flex:1" onclick="addFoundChannel('${g.name}', '${t.id}', '${t.name} (Post)', [], ${rolesStr}, '${g.id}')"><b>↪ ${t.name}</b> <span class="tag-badge">ACTIVE</span></div>
                     </div>`).join('');
                         return `<div class="discovery-item explorer-item explorer-channel" style="display:flex; align-items:center; gap:12px;" data-id="${c.id}" data-name="${c.name}" data-guild="${g.name}" data-guild-id="${g.id}" data-tags="${tagsStr}" data-roles="${rolesStr}">
                         <input type="checkbox" class="explorer-check" onclick="event.stopPropagation()">
                         <div style="flex:1" onclick="addFoundChannel('${g.name}', '${c.id}', '${c.name}', ${tagsStr}, ${rolesStr}, '${g.id}')">
-                            <div style="display:flex; justify-content:space-between; align-items:center;"><span># ${c.name} <span class="tag-badge">${c.type}</span></span>
-                            ${(c.type === 'forum' || c.type === 'text') ? `<button class="btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="event.stopPropagation(); fetchMoreThreads('${c.id}','${g.name}','${g.id}','${rolesStr}')">📂 Threads</button>` : ''}</div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;"><span># ${c.name} <span class="tag-badge" id="count-${c.id}">${c.threads.length > 0 ? c.threads.length + ' active' : c.type}</span></span>
+                            ${(c.type === 'forum' || c.type === 'text') ? `<button class="btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="event.stopPropagation(); fetchMoreThreads('${c.id}','${g.name}','${g.id}','${rolesStr}')">📅 Get All History</button>` : ''}</div>
                         </div>
                     </div><div id="extra-threads-${c.id}">${threadHTML}</div>`;
                     }).join('');
@@ -668,9 +676,6 @@
             function filterExplorer() {
                 const q = document.getElementById('explorerSearch').value.toLowerCase();
                 document.querySelectorAll('.explorer-item').forEach(i => {
-                    const name = i.getAttribute('data-name').toLowerCase();
-                    const guild = i.getAttribute('data-guild').toLowerCase();
-                    const matches = name.includes(q) || guild.includes(q);
                     const isThread = i.classList.contains('explorer-thread');
                     const isManuallyFetched = i.classList.contains('manually-fetched');
 
@@ -679,8 +684,36 @@
                         const isManualImport = i.getAttribute('data-name').startsWith('Imported ID') || i.getAttribute('data-name').startsWith('Manual ID');
                         i.style.display = (isThread && !isManualImport) ? 'none' : 'flex';
                     } else {
-                        // Search Mode: Show anything matching the query
-                        i.style.display = matches ? 'flex' : 'none';
+                        const isManualImport = i.getAttribute('data-name').startsWith('Imported ID') || i.getAttribute('data-name').startsWith('Manual ID');
+                        if (isManualImport) { i.style.display = 'flex'; return; }
+
+                        const name = i.getAttribute('data-name').toLowerCase();
+                        const guild = i.getAttribute('data-guild').toLowerCase();
+                        const matches = name.includes(q) || guild.includes(q);
+
+                        if (matches) {
+                            i.style.display = 'flex';
+                            // If it's a channel that matches, show all its threads too
+                            if (i.classList.contains('explorer-channel')) {
+                                const next = i.nextElementSibling;
+                                if (next && next.id.startsWith('extra-threads-')) {
+                                    Array.from(next.children).forEach(t => t.style.display = 'flex');
+                                }
+                            }
+                        } else {
+                            // If the item doesn't match, still show it if its PARENT channel matched
+                            const parentContainer = i.parentElement;
+                            if (parentContainer && parentContainer.id.startsWith('extra-threads-')) {
+                                const parentChannel = parentContainer.previousElementSibling;
+                                if (parentChannel && parentChannel.style.display === 'flex' && parentChannel.getAttribute('data-name').toLowerCase().includes(q)) {
+                                    i.style.display = 'flex';
+                                } else {
+                                    i.style.display = 'none';
+                                }
+                            } else {
+                                i.style.display = 'none';
+                            }
+                        }
                     }
                 });
             }
@@ -746,17 +779,56 @@
                 alert("Deep scan complete! All old posts are now searchable.");
             }
 
+            async function deepSearch() {
+                const q = document.getElementById('explorerSearch').value.trim();
+                if (!q) return alert("Please enter a name or keyword to search for.");
+                const btn = document.getElementById('deepSearchBtn');
+                btn.innerText = "⏳ Searching Discord Archives...";
+                btn.disabled = true;
+
+                try {
+                    const res = await fetch(`http://localhost:8000/search-all?q=${encodeURIComponent(q)}`);
+                    const results = await res.json();
+                    const container = document.getElementById('globalSearchResults');
+                    const list = document.getElementById('globalSearchList');
+
+                    if (results.length === 0) {
+                        alert("No matching posts found in archives.");
+                        container.style.display = 'none';
+                    } else {
+                        container.style.display = 'block';
+                        list.innerHTML = results.map(r => {
+                            const icon = r.status === 'active' ? '🟢' : '📂';
+                            return `<div class="discovery-item explorer-item" style="display:flex; align-items:center; gap:12px;" data-id="${r.id}" data-name="${r.name}" data-guild="${r.guild}">
+                            <input type="checkbox" class="explorer-check" onclick="event.stopPropagation()">
+                            <div style="flex:1" onclick="addFoundChannel('${r.guild}', '${r.id}', '${r.name}', [], [], '${r.guild_id}')">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span>${icon} <b>${r.name}</b> <span class="tag-badge">${r.status.toUpperCase()}</span></span>
+                                    <span style="font-size: 0.75rem; color: #8b949e">Server: ${r.guild}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                        }).join('');
+                    }
+                } catch (e) { alert("Search failed."); }
+                btn.innerText = "🔍 Global Archive Search";
+                btn.disabled = false;
+            }
+
             async function fetchMoreThreadsBatch(cid, gn, gid, rs) {
                 try {
                     const res = await fetch(`http://localhost:8000/threads/${cid}`);
                     const threads = await res.json();
                     const container = document.getElementById(`extra-threads-${cid}`);
+                    const countBadge = document.getElementById(`count-${cid}`);
                     if (threads && threads.length > 0) {
-                        // Add threads as 'hidden' initially so they only appear during search
-                        container.innerHTML = threads.map(t => `<div class="discovery-item explorer-item explorer-thread archived-post" style="margin-left:30px; display:none; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Archived Post)" data-guild="${gn}" data-guild-id="${gid}" data-roles="${rs}">
+                        if (countBadge) countBadge.innerText = `${threads.length} items synced`;
+                        container.innerHTML = threads.map(t => `<div class="discovery-item explorer-item explorer-thread archived-post" style="margin-left:30px; display:none; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Historic Post)" data-guild="${gn}" data-guild-id="${gid}" data-roles="${rs}">
                         <input type="checkbox" class="explorer-check" onclick="event.stopPropagation()">
-                        <div style="flex:1" onclick="addFoundChannel('${gn}', '${t.id}', '${t.name} (Archived)', [], ${rs}, '${gid}')"><b>↪ ${t.name}</b> <span class="tag-badge" style="background:#4a3221">ARCHIVED</span></div>
+                        <div style="flex:1" onclick="addFoundChannel('${gn}', '${t.id}', '${t.name} (Historic)', [], ${rs}, '${gid}')"><b>↪ ${t.name}</b> <span class="tag-badge" style="background:#5c4731">HISTORIC</span></div>
                     </div>`).join('');
+                    } else if (countBadge) {
+                        countBadge.innerText = 'empty';
                     }
                 } catch (e) { }
             }
