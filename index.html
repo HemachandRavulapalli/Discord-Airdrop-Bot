@@ -558,367 +558,411 @@
             <div class="section-title" style="justify-content: space-between;"><span>🛰️ Server Explorer</span><span
                     style="cursor:pointer" onclick="closeExplorer()">&times;</span></div>
             <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <input type="text" id="explorerSearch" placeholder="🔍 Search..." oninput="filterExplorer()">
+                <input type="text" id="explorerSearch" placeholder="🔍 Search Channels & Posts..."
+                    oninput="filterExplorer()">
                 <button class="btn-primary" style="width:auto; padding:10px 20px; background:#238636"
                     onclick="bulkAddFiltered()">➕ Add Selected</button>
             </div>
             <div
-                style="margin-bottom:15px; display:flex; align-items:center; gap:10px; font-size:0.85rem; color:#8b949e">
-                <input type="checkbox" id="explorerSelectAll" class="explorer-check" onclick="toggleSelectAll()">
-                <label for="explorerSelectAll" style="margin:0; cursor:pointer;">Select/Deselect All Visible</label>
+                style="display:flex; gap:10px; margin-bottom:15px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; align-items: center;">
+                <input type="text" id="manualChannelId" placeholder="📍 Paste Thread/Channel ID..."
+                    style="font-size: 0.85rem;">
+                <button class="btn-secondary" style="white-space:nowrap;" onclick="addManualThreadById()">📍 Find &
+                    Add</button>
+                <div
+                    style="margin-left:auto; display:flex; align-items:center; gap:10px; font-size:0.85rem; color:#8b949e">
+                    <input type="checkbox" id="explorerSelectAll" class="explorer-check" onclick="toggleSelectAll()">
+                    <label for="explorerSelectAll" style="margin:0; cursor:pointer; white-space:nowrap;">Select
+                        All</label>
+                </div>
             </div>
             <div id="explorerResults"></div>
         </div>
-    </div>
 
-    <script>
-        let imageDataURI = null;
-        let channels = [];
-        let logPoller = null;
+        <script>
+            let imageDataURI = null;
+            let channels = [];
+            let logPoller = null;
 
-        window.onload = () => { loadFromLocalStorage(); updatePreview(); refreshPresets(); };
+            window.onload = () => { loadFromLocalStorage(); updatePreview(); refreshPresets(); };
 
-        async function savePreset() {
-            const name = document.getElementById('presetName').value;
-            if (!name) return alert("Enter name");
-            try {
-                await fetch('http://localhost:8000/presets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, channels }) });
-                alert("Saved!"); refreshPresets();
-            } catch (e) { alert("Save failed"); }
-        }
+            async function savePreset() {
+                const name = document.getElementById('presetName').value;
+                if (!name) return alert("Enter name");
+                try {
+                    await fetch('http://localhost:8000/presets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, channels }) });
+                    alert("Saved!"); refreshPresets();
+                } catch (e) { alert("Save failed"); }
+            }
 
-        async function refreshPresets() {
-            try {
-                const res = await fetch('http://localhost:8000/presets');
-                const presets = await res.json();
-                const select = document.getElementById('presetSelect');
-                select.innerHTML = '<option value="">Select a Preset...</option>';
-                presets.forEach(p => { const o = document.createElement('option'); o.value = p; o.innerText = p; select.appendChild(o); });
-            } catch (e) { }
-        }
+            async function refreshPresets() {
+                try {
+                    const res = await fetch('http://localhost:8000/presets');
+                    const presets = await res.json();
+                    const select = document.getElementById('presetSelect');
+                    select.innerHTML = '<option value="">Select a Preset...</option>';
+                    presets.forEach(p => { const o = document.createElement('option'); o.value = p; o.innerText = p; select.appendChild(o); });
+                } catch (e) { }
+            }
 
-        async function loadPreset() {
-            const name = document.getElementById('presetSelect').value;
-            if (!name) return;
-            try {
-                const res = await fetch(`http://localhost:8000/presets/${name}`);
-                const data = await res.json();
-                channels = data.channels || [];
-                channels.forEach(c => c.id = Date.now() + Math.random());
-                renderChannels(); updatePreview();
-            } catch (e) { alert("Load failed"); }
-        }
+            async function loadPreset() {
+                const name = document.getElementById('presetSelect').value;
+                if (!name) return;
+                try {
+                    const res = await fetch(`http://localhost:8000/presets/${name}`);
+                    const data = await res.json();
+                    channels = data.channels || [];
+                    channels.forEach(c => c.id = Date.now() + Math.random());
+                    renderChannels(); updatePreview();
+                } catch (e) { alert("Load failed"); }
+            }
 
-        async function deletePreset() {
-            const name = document.getElementById('presetSelect').value;
-            if (!name) return alert("Select a preset to delete");
-            if (!confirm(`Are you sure you want to delete the preset "${name}"?`)) return;
-            try {
-                const res = await fetch(`http://localhost:8000/presets/${name}`, { method: 'DELETE' });
-                if (res.ok) {
-                    alert("Preset deleted!");
-                    refreshPresets();
-                } else {
-                    alert("Failed to delete preset.");
-                }
-            } catch (e) { alert("Delete failed"); }
-        }
+            async function deletePreset() {
+                const name = document.getElementById('presetSelect').value;
+                if (!name) return alert("Select a preset to delete");
+                if (!confirm(`Are you sure you want to delete the preset "${name}"?`)) return;
+                try {
+                    const res = await fetch(`http://localhost:8000/presets/${name}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        alert("Preset deleted!");
+                        refreshPresets();
+                    } else {
+                        alert("Failed to delete preset.");
+                    }
+                } catch (e) { alert("Delete failed"); }
+            }
 
-        function openExplorer() { document.getElementById('explorerModal').style.display = 'flex'; fetchDiscovery(); }
-        function closeExplorer() { document.getElementById('explorerModal').style.display = 'none'; }
+            function openExplorer() { document.getElementById('explorerModal').style.display = 'flex'; fetchDiscovery(); }
+            function closeExplorer() { document.getElementById('explorerModal').style.display = 'none'; }
 
-        async function fetchDiscovery() {
-            try {
-                const res = await fetch('http://localhost:8000/explore');
-                renderExplorer(await res.json());
-            } catch (e) { document.getElementById('explorerResults').innerHTML = 'Bot offline.'; }
-        }
+            async function fetchDiscovery() {
+                try {
+                    const res = await fetch('http://localhost:8000/explore');
+                    renderExplorer(await res.json());
+                } catch (e) { document.getElementById('explorerResults').innerHTML = 'Bot offline.'; }
+            }
 
-        function renderExplorer(guilds) {
-            document.getElementById('explorerResults').innerHTML = guilds.map(g => {
-                const rolesStr = JSON.stringify(g.roles || []).replace(/"/g, '&quot;');
-                const channelHTML = g.channels.map(c => {
-                    const tagsStr = JSON.stringify(c.available_tags || []).replace(/"/g, '&quot;');
-                    const threadHTML = c.threads.map(t => `<div class="discovery-item explorer-item" style="margin-left:30px; display:flex; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Thread)" data-guild="${g.name}" data-guild-id="${g.id}" data-roles="${rolesStr}">
+            function renderExplorer(guilds) {
+                document.getElementById('explorerResults').innerHTML = guilds.map(g => {
+                    const rolesStr = JSON.stringify(g.roles || []).replace(/"/g, '&quot;');
+                    const channelHTML = g.channels.map(c => {
+                        const tagsStr = JSON.stringify(c.available_tags || []).replace(/"/g, '&quot;');
+                        const threadHTML = c.threads.map(t => `<div class="discovery-item explorer-item explorer-thread" style="margin-left:30px; display:none; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Thread)" data-guild="${g.name}" data-guild-id="${g.id}" data-roles="${rolesStr}">
                         <input type="checkbox" class="explorer-check" onclick="event.stopPropagation()">
                         <div style="flex:1" onclick="addFoundChannel('${g.name}', '${t.id}', '${t.name} (Thread)', [], ${rolesStr}, '${g.id}')"><b>↪ ${t.name}</b> <span class="tag-badge">THREAD</span></div>
                     </div>`).join('');
-                    return `<div class="discovery-item explorer-item" style="display:flex; align-items:center; gap:12px;" data-id="${c.id}" data-name="${c.name}" data-guild="${g.name}" data-guild-id="${g.id}" data-tags="${tagsStr}" data-roles="${rolesStr}">
+                        return `<div class="discovery-item explorer-item explorer-channel" style="display:flex; align-items:center; gap:12px;" data-id="${c.id}" data-name="${c.name}" data-guild="${g.name}" data-guild-id="${g.id}" data-tags="${tagsStr}" data-roles="${rolesStr}">
                         <input type="checkbox" class="explorer-check" onclick="event.stopPropagation()">
                         <div style="flex:1" onclick="addFoundChannel('${g.name}', '${c.id}', '${c.name}', ${tagsStr}, ${rolesStr}, '${g.id}')">
                             <div style="display:flex; justify-content:space-between; align-items:center;"><span># ${c.name} <span class="tag-badge">${c.type}</span></span>
                             ${(c.type === 'forum' || c.type === 'text') ? `<button class="btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="event.stopPropagation(); fetchMoreThreads('${c.id}','${g.name}','${g.id}','${rolesStr}')">📂 Threads</button>` : ''}</div>
                         </div>
                     </div><div id="extra-threads-${c.id}">${threadHTML}</div>`;
+                    }).join('');
+                    return `<h3>🏰 ${g.name}</h3>${channelHTML}`;
                 }).join('');
-                return `<h3>🏰 ${g.name}</h3>${channelHTML}`;
-            }).join('');
-        }
+            }
 
-        function filterExplorer() {
-            const q = document.getElementById('explorerSearch').value.toLowerCase();
-            document.querySelectorAll('.explorer-item').forEach(i => i.style.display = (i.getAttribute('data-name').toLowerCase().includes(q) || i.getAttribute('data-guild').toLowerCase().includes(q)) ? 'flex' : 'none');
-        }
+            function filterExplorer() {
+                const q = document.getElementById('explorerSearch').value.toLowerCase();
+                document.querySelectorAll('.explorer-item').forEach(i => {
+                    const name = i.getAttribute('data-name').toLowerCase();
+                    const guild = i.getAttribute('data-guild').toLowerCase();
+                    const matches = name.includes(q) || guild.includes(q);
+                    const isThread = i.classList.contains('explorer-thread');
+                    const isFetched = i.classList.contains('manually-fetched');
 
-        function toggleSelectAll() {
-            const m = document.getElementById('explorerSelectAll');
-            document.querySelectorAll('.explorer-item').forEach(i => { if (i.style.display !== 'none') i.querySelector('.explorer-check').checked = m.checked; });
-        }
+                    if (!q) {
+                        // If no search, only show channels or manually fetched threads
+                        i.style.display = (isThread && !isFetched) ? 'none' : 'flex';
+                    } else {
+                        // During search, show anything that matches
+                        i.style.display = matches ? 'flex' : 'none';
+                    }
+                });
+            }
 
-        async function fetchMoreThreads(cid, gn, gid, rs) {
-            try {
-                const res = await fetch(`http://localhost:8000/threads/${cid}`);
-                const threads = await res.json();
-                document.getElementById(`extra-threads-${cid}`).innerHTML = threads.map(t => `<div class="discovery-item explorer-item" style="margin-left:30px; display:flex; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Thread)" data-guild="${gn}" data-guild-id="${gid}" data-roles="${rs}">
+            function toggleSelectAll() {
+                const m = document.getElementById('explorerSelectAll');
+                document.querySelectorAll('.explorer-item').forEach(i => { if (i.style.display !== 'none') i.querySelector('.explorer-check').checked = m.checked; });
+            }
+
+            async function fetchMoreThreads(cid, gn, gid, rs) {
+                const btn = event.target;
+                const originalText = btn.innerText;
+                btn.innerText = "⏳ Scanning...";
+                try {
+                    const res = await fetch(`http://localhost:8000/threads/${cid}`);
+                    const threads = await res.json();
+                    if (threads.length === 0) alert("No additional threads found for this channel.");
+                    document.getElementById(`extra-threads-${cid}`).innerHTML = threads.map(t => `<div class="discovery-item explorer-item explorer-thread manually-fetched" style="margin-left:30px; display:flex; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Thread)" data-guild="${gn}" data-guild-id="${gid}" data-roles="${rs}">
                     <input type="checkbox" class="explorer-check" onclick="event.stopPropagation()">
                     <div style="flex:1" onclick="addFoundChannel('${gn}', '${t.id}', '${t.name} (Thread)', [], ${rs}, '${gid}')"><b>↪ ${t.name}</b> <span class="tag-badge">THREAD</span></div>
                 </div>`).join('');
-                filterExplorer();
-            } catch (e) { }
-        }
-
-        function bulkAddFiltered() {
-            const checked = Array.from(document.querySelectorAll('.explorer-item')).filter(i => i.style.display !== 'none' && i.querySelector('.explorer-check').checked);
-            const visible = Array.from(document.querySelectorAll('.explorer-item')).filter(i => i.style.display !== 'none');
-            const targets = checked.length > 0 ? checked : visible;
-            if (targets.length === 0) return;
-            targets.forEach(i => {
-                const id = i.getAttribute('data-id');
-                if (channels.some(c => c.channelId === id)) return;
-                const gid = i.getAttribute('data-guild-id');
-                channels.push({ id: Date.now() + Math.random(), nickname: `${i.getAttribute('data-guild')} | ${i.getAttribute('data-name')}`, channelId: id, guildId: gid, tagIds: [], available_tags: JSON.parse(i.getAttribute('data-tags') || '[]'), available_roles: JSON.parse(i.getAttribute('data-roles') || '[]'), roleId: getRoleMemory(gid) || '', status: 'idle' });
-            });
-            renderChannels(); saveToLocalStorage(); closeExplorer();
-        }
-
-        function addFoundChannel(gn, id, n, ts = [], rs = [], gid = '') {
-            if (channels.some(c => c.channelId === id)) { closeExplorer(); return; }
-            channels.push({ id: Date.now(), nickname: `${gn} | ${n}`, channelId: id, guildId: gid, tagIds: [], available_tags: ts, available_roles: rs, roleId: getRoleMemory(gid) || '', status: 'idle' });
-            renderChannels(); saveToLocalStorage(); closeExplorer();
-        }
-
-        function saveToLocalStorage() { localStorage.setItem('airdrop_commander_data', JSON.stringify({ title: document.getElementById('title').value, content: document.getElementById('content').value, channels, useEmbed: document.getElementById('useEmbed').checked, embedColor: document.getElementById('embedColor').value })); }
-        function loadFromLocalStorage() {
-            const saved = localStorage.getItem('airdrop_commander_data');
-            if (!saved) { addChannel(); return; }
-            const data = JSON.parse(saved);
-            document.getElementById('title').value = data.title || '';
-            document.getElementById('content').value = data.content || '';
-            document.getElementById('useEmbed').checked = data.useEmbed || false;
-            document.getElementById('embedColor').value = data.embedColor || '#5865f2';
-            channels = data.channels || [];
-            if (channels.length === 0) addChannel(); else renderChannels();
-        }
-
-        function updatePreview() {
-            saveToLocalStorage();
-            const use = document.getElementById('useEmbed').checked;
-            const p = document.getElementById('livePreview');
-            p.style.borderLeft = use ? `4px solid ${document.getElementById('embedColor').value}` : 'none';
-            p.style.background = use ? '#1e1f22' : '#313338';
-            document.getElementById('prevTitle').innerText = document.getElementById('title').value || 'Title';
-            document.getElementById('prevText').innerText = document.getElementById('content').value || 'Content...';
-            const img = document.getElementById('prevImage');
-            if (imageDataURI) { img.src = imageDataURI; img.style.display = 'block'; } else img.style.display = 'none';
-        }
-
-        // Image History Management
-        let imageHistory = [null];
-        let historyIndex = 0;
-
-        function saveImageToHistory(data) {
-            // If we are not at the end of history, truncate it
-            if (historyIndex < imageHistory.length - 1) {
-                imageHistory = imageHistory.slice(0, historyIndex + 1);
+                } catch (e) { alert("Search failed."); }
+                btn.innerText = originalText;
             }
-            imageHistory.push(data);
-            historyIndex++;
-            applyImageFromHistory();
-        }
 
-        function undoImage() {
-            if (historyIndex > 0) {
-                historyIndex--;
-                applyImageFromHistory();
+            async function addManualThreadById() {
+                const id = document.getElementById('manualChannelId').value.trim();
+                if (!id) return alert("Please paste a Thread or Channel ID");
+                try {
+                    // Try to find the roles for this channel to make it functional
+                    const res = await fetch(`http://localhost:8000/roles/${id}`);
+                    const roles = await res.json();
+                    const guildName = roles.length > 0 ? "Imported Server" : "External Server";
+                    const guildId = roles.length > 0 ? roles[0].guild_id : "";
+                    addFoundChannel(guildName, id, `Manual ID: ${id}`, [], roles, guildId);
+                    document.getElementById('manualChannelId').value = '';
+                } catch (e) {
+                    if (confirm("Could not find server details for this ID (Bot might not be in the server). Add anyway?")) {
+                        addFoundChannel("Unknown Server", id, `Imported ID: ${id}`, [], [], "");
+                    }
+                }
             }
-        }
 
-        function redoImage() {
-            if (historyIndex < imageHistory.length - 1) {
+            function bulkAddFiltered() {
+                const checked = Array.from(document.querySelectorAll('.explorer-item')).filter(i => i.style.display !== 'none' && i.querySelector('.explorer-check').checked);
+                const visible = Array.from(document.querySelectorAll('.explorer-item')).filter(i => i.style.display !== 'none');
+                const targets = checked.length > 0 ? checked : visible;
+                if (targets.length === 0) return;
+                targets.forEach(i => {
+                    const id = i.getAttribute('data-id');
+                    if (channels.some(c => c.channelId === id)) return;
+                    const gid = i.getAttribute('data-guild-id');
+                    channels.push({ id: Date.now() + Math.random(), nickname: `${i.getAttribute('data-guild')} | ${i.getAttribute('data-name')}`, channelId: id, guildId: gid, tagIds: [], available_tags: JSON.parse(i.getAttribute('data-tags') || '[]'), available_roles: JSON.parse(i.getAttribute('data-roles') || '[]'), roleId: getRoleMemory(gid) || '', status: 'idle' });
+                });
+                renderChannels(); saveToLocalStorage(); closeExplorer();
+            }
+
+            function addFoundChannel(gn, id, n, ts = [], rs = [], gid = '') {
+                if (channels.some(c => c.channelId === id)) { closeExplorer(); return; }
+                channels.push({ id: Date.now(), nickname: `${gn} | ${n}`, channelId: id, guildId: gid, tagIds: [], available_tags: ts, available_roles: rs, roleId: getRoleMemory(gid) || '', status: 'idle' });
+                renderChannels(); saveToLocalStorage(); closeExplorer();
+            }
+
+            function saveToLocalStorage() { localStorage.setItem('airdrop_commander_data', JSON.stringify({ title: document.getElementById('title').value, content: document.getElementById('content').value, channels, useEmbed: document.getElementById('useEmbed').checked, embedColor: document.getElementById('embedColor').value })); }
+            function loadFromLocalStorage() {
+                const saved = localStorage.getItem('airdrop_commander_data');
+                if (!saved) { addChannel(); return; }
+                const data = JSON.parse(saved);
+                document.getElementById('title').value = data.title || '';
+                document.getElementById('content').value = data.content || '';
+                document.getElementById('useEmbed').checked = data.useEmbed || false;
+                document.getElementById('embedColor').value = data.embedColor || '#5865f2';
+                channels = data.channels || [];
+                if (channels.length === 0) addChannel(); else renderChannels();
+            }
+
+            function updatePreview() {
+                saveToLocalStorage();
+                const use = document.getElementById('useEmbed').checked;
+                const p = document.getElementById('livePreview');
+                p.style.borderLeft = use ? `4px solid ${document.getElementById('embedColor').value}` : 'none';
+                p.style.background = use ? '#1e1f22' : '#313338';
+                document.getElementById('prevTitle').innerText = document.getElementById('title').value || 'Title';
+                document.getElementById('prevText').innerText = document.getElementById('content').value || 'Content...';
+                const img = document.getElementById('prevImage');
+                if (imageDataURI) { img.src = imageDataURI; img.style.display = 'block'; } else img.style.display = 'none';
+            }
+
+            // Image History Management
+            let imageHistory = [null];
+            let historyIndex = 0;
+
+            function saveImageToHistory(data) {
+                // If we are not at the end of history, truncate it
+                if (historyIndex < imageHistory.length - 1) {
+                    imageHistory = imageHistory.slice(0, historyIndex + 1);
+                }
+                imageHistory.push(data);
                 historyIndex++;
                 applyImageFromHistory();
             }
-        }
 
-        function deleteImage() {
-            if (imageDataURI !== null) {
-                saveImageToHistory(null);
-            }
-        }
-
-        function applyImageFromHistory() {
-            imageDataURI = imageHistory[historyIndex];
-            const imgPreview = document.getElementById('imagePreview');
-            const dropText = document.getElementById('dropText');
-
-            if (imageDataURI) {
-                imgPreview.src = imageDataURI;
-                imgPreview.style.display = 'block';
-                dropText.style.display = 'none';
-            } else {
-                imgPreview.src = '';
-                imgPreview.style.display = 'none';
-                dropText.style.display = 'block';
-            }
-            updatePreview();
-        }
-
-        // Global Keyboard Shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Don't trigger if user is typing in an input or textarea
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-            // Undo: Ctrl + Z
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
-                e.preventDefault();
-                undoImage();
-            }
-            // Redo: Ctrl + Y or Ctrl + Shift + Z
-            if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
-                e.preventDefault();
-                redoImage();
-            }
-            // Delete: Delete or Backspace
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                deleteImage();
-            }
-        });
-
-        const dz = document.getElementById('dropZone');
-        dz.onclick = () => document.getElementById('fileInput').click();
-
-        document.getElementById('fileInput').onchange = (e) => {
-            handleImageFile(e.target.files[0]);
-        };
-
-        // Handle Paste (Ctrl+V)
-        document.addEventListener('paste', (e) => {
-            // Special handling for paste: if it's an image, we save it to history
-            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-            for (const item of items) {
-                if (item.kind === 'file' && item.type.startsWith('image/')) {
-                    handleImageFile(item.getAsFile());
+            function undoImage() {
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    applyImageFromHistory();
                 }
             }
-        });
 
-        // Handle Drag & Drop
-        window.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dz.classList.add('dragover');
-        });
-
-        window.addEventListener('dragleave', () => {
-            dz.classList.remove('dragover');
-        });
-
-        window.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dz.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) {
-                handleImageFile(e.dataTransfer.files[0]);
+            function redoImage() {
+                if (historyIndex < imageHistory.length - 1) {
+                    historyIndex++;
+                    applyImageFromHistory();
+                }
             }
-        });
 
-        function handleImageFile(file) {
-            if (!file || !file.type.startsWith('image/')) return;
-            const r = new FileReader();
-            r.onload = (ev) => {
-                saveImageToHistory(ev.target.result);
+            function deleteImage() {
+                if (imageDataURI !== null) {
+                    saveImageToHistory(null);
+                }
+            }
+
+            function applyImageFromHistory() {
+                imageDataURI = imageHistory[historyIndex];
+                const imgPreview = document.getElementById('imagePreview');
+                const dropText = document.getElementById('dropText');
+
+                if (imageDataURI) {
+                    imgPreview.src = imageDataURI;
+                    imgPreview.style.display = 'block';
+                    dropText.style.display = 'none';
+                } else {
+                    imgPreview.src = '';
+                    imgPreview.style.display = 'none';
+                    dropText.style.display = 'block';
+                }
+                updatePreview();
+            }
+
+            // Global Keyboard Shortcuts
+            document.addEventListener('keydown', (e) => {
+                // Don't trigger if user is typing in an input or textarea
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                // Undo: Ctrl + Z
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    undoImage();
+                }
+                // Redo: Ctrl + Y or Ctrl + Shift + Z
+                if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+                    e.preventDefault();
+                    redoImage();
+                }
+                // Delete: Delete or Backspace
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    deleteImage();
+                }
+            });
+
+            const dz = document.getElementById('dropZone');
+            dz.onclick = () => document.getElementById('fileInput').click();
+
+            document.getElementById('fileInput').onchange = (e) => {
+                handleImageFile(e.target.files[0]);
             };
-            r.readAsDataURL(file);
-        }
+
+            // Handle Paste (Ctrl+V)
+            document.addEventListener('paste', (e) => {
+                // Special handling for paste: if it's an image, we save it to history
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                for (const item of items) {
+                    if (item.kind === 'file' && item.type.startsWith('image/')) {
+                        handleImageFile(item.getAsFile());
+                    }
+                }
+            });
+
+            // Handle Drag & Drop
+            window.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dz.classList.add('dragover');
+            });
+
+            window.addEventListener('dragleave', () => {
+                dz.classList.remove('dragover');
+            });
+
+            window.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dz.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    handleImageFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            function handleImageFile(file) {
+                if (!file || !file.type.startsWith('image/')) return;
+                const r = new FileReader();
+                r.onload = (ev) => {
+                    saveImageToHistory(ev.target.result);
+                };
+                r.readAsDataURL(file);
+            }
 
 
 
-        function addChannel() { channels.push({ id: Date.now(), nickname: '', channelId: '', tagIds: [], available_tags: [], available_roles: [], roleId: '', guildId: '', status: 'idle' }); renderChannels(); saveToLocalStorage(); }
-        function removeChannel(id) { channels = channels.filter(c => c.id !== id); renderChannels(); saveToLocalStorage(); }
-        function clearChannels() { if (confirm("Clear?")) { channels = []; addChannel(); renderChannels(); saveToLocalStorage(); } }
-        function updateChannelData(id, f, v) { const c = channels.find(x => x.id === id); if (f === 'tagIds') c.tagIds = v.split(',').map(s => s.trim()).filter(s => s); else c[f] = v; saveToLocalStorage(); }
+            function addChannel() { channels.push({ id: Date.now(), nickname: '', channelId: '', tagIds: [], available_tags: [], available_roles: [], roleId: '', guildId: '', status: 'idle' }); renderChannels(); saveToLocalStorage(); }
+            function removeChannel(id) { channels = channels.filter(c => c.id !== id); renderChannels(); saveToLocalStorage(); }
+            function clearChannels() { if (confirm("Clear?")) { channels = []; addChannel(); renderChannels(); saveToLocalStorage(); } }
+            function updateChannelData(id, f, v) { const c = channels.find(x => x.id === id); if (f === 'tagIds') c.tagIds = v.split(',').map(s => s.trim()).filter(s => s); else c[f] = v; saveToLocalStorage(); }
 
-        function renderChannels() {
-            const container = document.getElementById('channelsList');
-            container.innerHTML = '';
-            channels.forEach(c => {
-                const div = document.createElement('div'); div.className = 'channel-item'; div.id = `card-${c.id}`;
-                const isT = c.nickname?.includes('(Thread)');
-                let tags = (!isT && c.available_tags?.length > 0) ? `<div class="form-group"><label>🏷️ Tags</label><div>${c.available_tags.map(t => `<span class="tag-chip ${c.tagIds.includes(t.id) ? 'active' : ''}" onclick="toggleTag(${c.id},'${t.id}')">${t.name}</span>`).join('')}</div></div>` : '';
-                let roles = (c.available_roles?.length > 0) ? `<div class="form-group"><label>👤 Role</label><div>${c.available_roles.map(r => `<span class="role-chip ${c.roleId === r.id ? 'active' : ''}" onclick="toggleRole(${c.id},'${r.id}')">${r.name}</span>`).join('')}</div></div>` : `<div class="form-group"><label>Role ID</label><input type="text" value="${c.roleId || ''}" oninput="updateChannelData(${c.id},'roleId',this.value)"></div>`;
-                div.innerHTML = `
+            function renderChannels() {
+                const container = document.getElementById('channelsList');
+                container.innerHTML = '';
+                channels.forEach(c => {
+                    const div = document.createElement('div'); div.className = 'channel-item'; div.id = `card-${c.id}`;
+                    const isT = c.nickname?.includes('(Thread)');
+                    let tags = (!isT && c.available_tags?.length > 0) ? `<div class="form-group"><label>🏷️ Tags</label><div>${c.available_tags.map(t => `<span class="tag-chip ${c.tagIds.includes(t.id) ? 'active' : ''}" onclick="toggleTag(${c.id},'${t.id}')">${t.name}</span>`).join('')}</div></div>` : '';
+                    let roles = (c.available_roles?.length > 0) ? `<div class="form-group"><label>👤 Role</label><div>${c.available_roles.map(r => `<span class="role-chip ${c.roleId === r.id ? 'active' : ''}" onclick="toggleRole(${c.id},'${r.id}')">${r.name}</span>`).join('')}</div></div>` : `<div class="form-group"><label>Role ID</label><input type="text" value="${c.roleId || ''}" oninput="updateChannelData(${c.id},'roleId',this.value)"></div>`;
+                    div.innerHTML = `
                     <div class="remove-channel" onclick="removeChannel(${c.id})">✕</div>
                     <div class="channel-status-badge status-${c.status}">${c.status}</div>
                     <div class="form-group"><label>Nickname</label><input type="text" value="${c.nickname}" oninput="updateChannelData(${c.id},'nickname',this.value)"></div>
                     <div class="form-group"><label>ID</label><div style="display:flex;gap:10px;"><input type="text" value="${c.channelId}" oninput="updateChannelData(${c.id},'channelId',this.value)"><button class="btn-secondary" style="font-size:0.7rem;" onclick="fetchTags(${c.id})">Sync</button></div></div>
                     ${tags} ${roles}`;
-                container.appendChild(div);
-            });
-        }
-
-        async function fetchTags(cid) {
-            const c = channels.find(x => x.id === cid);
-            try {
-                const [ts, rs] = await Promise.all([fetch(`http://localhost:8000/tags/${c.channelId}`).then(r => r.json()), fetch(`http://localhost:8000/roles/${c.channelId}`).then(r => r.json())]);
-                c.available_tags = ts; c.available_roles = rs;
-                if (rs.length > 0) { c.guildId = rs[0].guild_id; if (!c.roleId) c.roleId = getRoleMemory(c.guildId) || ''; }
-                renderChannels(); saveToLocalStorage();
-            } catch (e) { }
-        }
-
-        function toggleTag(cid, tid) { const c = channels.find(x => x.id === cid); if (c.tagIds.includes(tid)) c.tagIds = c.tagIds.filter(id => id !== tid); else c.tagIds.push(tid); renderChannels(); saveToLocalStorage(); }
-        function toggleRole(cid, rid) { const c = channels.find(x => x.id === cid); c.roleId = (c.roleId === rid) ? '' : rid; if (c.roleId && c.guildId) saveRoleMemory(c.guildId, c.roleId); renderChannels(); saveToLocalStorage(); }
-        function saveRoleMemory(gid, rid) { let m = JSON.parse(localStorage.getItem('guildRoleMemory') || '{}'); m[gid] = rid; localStorage.setItem('guildRoleMemory', JSON.stringify(m)); }
-        function getRoleMemory(gid) { return JSON.parse(localStorage.getItem('guildRoleMemory') || '{}')[gid] || null; }
-
-        async function pollLogs() {
-            try {
-                const res = await fetch('http://localhost:8000/logs');
-                const logs = await res.json();
-                const total = channels.length, done = logs.filter(l => l.status === 'success' && (l.message.includes('Sent') || l.message.includes('Created'))).length;
-                document.getElementById('progressBar').style.width = `${total ? (done / total) * 100 : 0}%`;
-                logs.forEach(l => {
-                    const c = channels.find(x => x.nickname === l.channel || x.channelId === l.channel);
-                    if (c && l.status !== 'processing') {
-                        c.status = l.status;
-                        const b = document.querySelector(`#card-${c.id} .channel-status-badge`);
-                        if (b) { b.className = `channel-status-badge status-${l.status}`; b.innerText = l.status; }
-                    }
+                    container.appendChild(div);
                 });
-                if (logs.some(l => l.message === 'MISSION_ACCOMPLISHED')) { clearInterval(logPoller); document.getElementById('statusPulse').style.background = '#3fb950'; setTimeout(() => document.getElementById('progressContainer').style.display = 'none', 2000); }
-                document.getElementById('logsContainer').innerHTML = logs.reverse().map(l => `<div class="log-entry"><span style="color:#8b949e">[${new Date(l.time).toLocaleTimeString()}]</span><span class="log-${l.status}">${l.status.toUpperCase()}</span><span style="font-weight:600">${l.channel}</span><span>${l.message === 'MISSION_ACCOMPLISHED' ? '✅ Done' : l.message}</span></div>`).join('');
-            } catch (e) { }
-        }
+            }
 
-        async function sendToBot() {
-            document.getElementById('progressContainer').style.display = 'block';
-            document.getElementById('progressBar').style.width = '0%';
-            document.getElementById('statusPulse').style.background = '#d29922';
-            channels.forEach(c => c.status = 'running'); renderChannels();
-            logPoller = setInterval(pollLogs, 1000);
-            await fetch('http://localhost:8000/dispatch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: document.getElementById('title').value, content: document.getElementById('content').value, imageDataURI, useEmbed: document.getElementById('useEmbed').checked, embedColor: document.getElementById('embedColor').value, channels: channels.map(c => ({ nickname: c.nickname, channelId: c.channelId, tagIds: c.tagIds, roleId: c.roleId || null })) }) });
-        }
+            async function fetchTags(cid) {
+                const c = channels.find(x => x.id === cid);
+                try {
+                    const [ts, rs] = await Promise.all([fetch(`http://localhost:8000/tags/${c.channelId}`).then(r => r.json()), fetch(`http://localhost:8000/roles/${c.channelId}`).then(r => r.json())]);
+                    c.available_tags = ts; c.available_roles = rs;
+                    if (rs.length > 0) { c.guildId = rs[0].guild_id; if (!c.roleId) c.roleId = getRoleMemory(c.guildId) || ''; }
+                    renderChannels(); saveToLocalStorage();
+                } catch (e) { }
+            }
 
-        async function syncAllData() { for (let c of channels) if (c.channelId) await fetchTags(c.id); alert("All synced!"); }
-        function syncTagsByName() {
-            const names = new Set();
-            channels.forEach(c => c.tagIds.forEach(id => { const t = c.available_tags.find(x => x.id === id); if (t) names.add(t.name); }));
-            channels.forEach(c => c.available_tags.forEach(t => { if (names.has(t.name) && !c.tagIds.includes(t.id)) c.tagIds.push(t.id); }));
-            renderChannels(); saveToLocalStorage();
-        }
-        function syncRolesByName() { channels.forEach(c => { if (c.guildId) { const m = getRoleMemory(c.guildId); if (m) c.roleId = m; } }); renderChannels(); saveToLocalStorage(); }
+            function toggleTag(cid, tid) { const c = channels.find(x => x.id === cid); if (c.tagIds.includes(tid)) c.tagIds = c.tagIds.filter(id => id !== tid); else c.tagIds.push(tid); renderChannels(); saveToLocalStorage(); }
+            function toggleRole(cid, rid) { const c = channels.find(x => x.id === cid); c.roleId = (c.roleId === rid) ? '' : rid; if (c.roleId && c.guildId) saveRoleMemory(c.guildId, c.roleId); renderChannels(); saveToLocalStorage(); }
+            function saveRoleMemory(gid, rid) { let m = JSON.parse(localStorage.getItem('guildRoleMemory') || '{}'); m[gid] = rid; localStorage.setItem('guildRoleMemory', JSON.stringify(m)); }
+            function getRoleMemory(gid) { return JSON.parse(localStorage.getItem('guildRoleMemory') || '{}')[gid] || null; }
 
-        function generateJSON() { const p = { title: document.getElementById('title').value, content: document.getElementById('content').value, imageDataURI, useEmbed: document.getElementById('useEmbed').checked, embedColor: document.getElementById('embedColor').value, channels: channels.map(c => ({ nickname: c.nickname, channelId: c.channelId, tagIds: c.tagIds, roleId: c.roleId || null })) }; document.getElementById('jsonViewer').innerText = JSON.stringify(p, null, 2); return JSON.stringify(p); }
-        function copyJSON() { navigator.clipboard.writeText(generateJSON()).then(() => alert('Copied!')); }
-    </script>
+            async function pollLogs() {
+                try {
+                    const res = await fetch('http://localhost:8000/logs');
+                    const logs = await res.json();
+                    const total = channels.length, done = logs.filter(l => l.status === 'success' && (l.message.includes('Sent') || l.message.includes('Created'))).length;
+                    document.getElementById('progressBar').style.width = `${total ? (done / total) * 100 : 0}%`;
+                    logs.forEach(l => {
+                        const c = channels.find(x => x.nickname === l.channel || x.channelId === l.channel);
+                        if (c && l.status !== 'processing') {
+                            c.status = l.status;
+                            const b = document.querySelector(`#card-${c.id} .channel-status-badge`);
+                            if (b) { b.className = `channel-status-badge status-${l.status}`; b.innerText = l.status; }
+                        }
+                    });
+                    if (logs.some(l => l.message === 'MISSION_ACCOMPLISHED')) { clearInterval(logPoller); document.getElementById('statusPulse').style.background = '#3fb950'; setTimeout(() => document.getElementById('progressContainer').style.display = 'none', 2000); }
+                    document.getElementById('logsContainer').innerHTML = logs.reverse().map(l => `<div class="log-entry"><span style="color:#8b949e">[${new Date(l.time).toLocaleTimeString()}]</span><span class="log-${l.status}">${l.status.toUpperCase()}</span><span style="font-weight:600">${l.channel}</span><span>${l.message === 'MISSION_ACCOMPLISHED' ? '✅ Done' : l.message}</span></div>`).join('');
+                } catch (e) { }
+            }
+
+            async function sendToBot() {
+                document.getElementById('progressContainer').style.display = 'block';
+                document.getElementById('progressBar').style.width = '0%';
+                document.getElementById('statusPulse').style.background = '#d29922';
+                channels.forEach(c => c.status = 'running'); renderChannels();
+                logPoller = setInterval(pollLogs, 1000);
+                await fetch('http://localhost:8000/dispatch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: document.getElementById('title').value, content: document.getElementById('content').value, imageDataURI, useEmbed: document.getElementById('useEmbed').checked, embedColor: document.getElementById('embedColor').value, channels: channels.map(c => ({ nickname: c.nickname, channelId: c.channelId, tagIds: c.tagIds, roleId: c.roleId || null })) }) });
+            }
+
+            async function syncAllData() { for (let c of channels) if (c.channelId) await fetchTags(c.id); alert("All synced!"); }
+            function syncTagsByName() {
+                const names = new Set();
+                channels.forEach(c => c.tagIds.forEach(id => { const t = c.available_tags.find(x => x.id === id); if (t) names.add(t.name); }));
+                channels.forEach(c => c.available_tags.forEach(t => { if (names.has(t.name) && !c.tagIds.includes(t.id)) c.tagIds.push(t.id); }));
+                renderChannels(); saveToLocalStorage();
+            }
+            function syncRolesByName() { channels.forEach(c => { if (c.guildId) { const m = getRoleMemory(c.guildId); if (m) c.roleId = m; } }); renderChannels(); saveToLocalStorage(); }
+
+            function generateJSON() { const p = { title: document.getElementById('title').value, content: document.getElementById('content').value, imageDataURI, useEmbed: document.getElementById('useEmbed').checked, embedColor: document.getElementById('embedColor').value, channels: channels.map(c => ({ nickname: c.nickname, channelId: c.channelId, tagIds: c.tagIds, roleId: c.roleId || null })) }; document.getElementById('jsonViewer').innerText = JSON.stringify(p, null, 2); return JSON.stringify(p); }
+            function copyJSON() { navigator.clipboard.writeText(generateJSON()).then(() => alert('Copied!')); }
+        </script>
 </body>
 
 </html>
