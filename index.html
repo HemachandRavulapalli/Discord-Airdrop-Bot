@@ -647,7 +647,7 @@
                         <input type="checkbox" class="explorer-check" onclick="event.stopPropagation()">
                         <div style="flex:1" onclick="addFoundChannel('${g.name}', '${c.id}', '${c.name}', ${tagsStr}, ${rolesStr}, '${g.id}')">
                             <div style="display:flex; justify-content:space-between; align-items:center;"><span># ${c.name} <span class="tag-badge">${c.type}</span></span>
-                            ${c.type === 'forum' ? `<button class="btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="event.stopPropagation(); fetchMoreThreads('${c.id}','${g.name}','${g.id}','${rolesStr}')">📂 Threads</button>` : ''}</div>
+                            ${(c.type === 'forum' || c.type === 'text') ? `<button class="btn-secondary" style="font-size:10px; padding:2px 6px;" onclick="event.stopPropagation(); fetchMoreThreads('${c.id}','${g.name}','${g.id}','${rolesStr}')">📂 Threads</button>` : ''}</div>
                         </div>
                     </div><div id="extra-threads-${c.id}">${threadHTML}</div>`;
                 }).join('');

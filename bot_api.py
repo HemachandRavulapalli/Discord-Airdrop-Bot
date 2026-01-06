@@ -208,15 +208,28 @@ async def process_dispatch(payload: DispatchPayload):
                 await channel.create_thread(**thread_kwargs)
                 add_log("success", f"Created NEW thread", channel.name)
             
-            elif isinstance(channel, (discord.Thread, discord.TextChannel)):
+            elif isinstance(channel, discord.Thread):
+                # If thread is archived, try to unarchive it
+                if channel.archived:
+                    try:
+                        await channel.edit(archived=False)
+                    except Exception as e:
+                        print(f"[Warning] Could not unarchive thread {channel.name}: {e}")
+                
+                await channel.send(**send_kwargs)
+                add_log("success", f"Sent message", channel.name)
+
+            elif isinstance(channel, discord.TextChannel):
                 await channel.send(**send_kwargs)
                 add_log("success", f"Sent message", channel.name)
             
             else:
-                add_log("error", "Unsupported channel", str(config.channelId))
+                add_log("error", "Unsupported channel type", str(config.channelId))
 
-        except discord.Forbidden:
-            add_log("error", "Forbidden (Missing Perms)", config.nickname or config.channelId)
+        except discord.Forbidden as e:
+            msg = f"Forbidden (Missing Perms): {e.text or 'Missing Permissions'}"
+            add_log("error", msg, config.nickname or config.channelId)
+            print(f"[Forbidden] {config.channelId}: {e.text}")
         except Exception as e:
             error_details = traceback.format_exc()
             add_log("error", str(e), config.nickname or config.channelId, error_details)
@@ -253,8 +266,8 @@ async def get_channel_threads(channel_id: int):
         for t in channel.threads:
             threads.append({"name": t.name, "id": str(t.id)})
             
-        # Archived threads (Forums only)
-        if isinstance(channel, discord.ForumChannel):
+        # Archived threads (Forums and Text Channels)
+        if isinstance(channel, (discord.ForumChannel, discord.TextChannel)):
             async for t in channel.archived_threads(limit=50):
                 if not any(x["id"] == str(t.id) for x in threads):
                     threads.append({"name": t.name, "id": str(t.id)})
@@ -355,6 +368,18 @@ async def explore_servers():
             "roles": [{"name": r.name, "id": str(r.id)} for r in guild.roles if not r.is_default()]
         }
         
+        # Deep scan for active threads (fetching from API to be sure)
+        thread_map = {}
+        try:
+            active_threads = await guild.active_threads()
+            for thread in active_threads:
+                parent_id = str(thread.parent_id)
+                if parent_id not in thread_map:
+                    thread_map[parent_id] = []
+                thread_map[parent_id].append({"name": thread.name, "id": str(thread.id)})
+        except Exception as e:
+            print(f"[Warning] Could not fetch active threads for {guild.name}: {e}")
+
         # Get Forums and Text Channels
         for channel in guild.channels:
             if isinstance(channel, (discord.TextChannel, discord.ForumChannel)):
@@ -363,7 +388,7 @@ async def explore_servers():
                     "id": str(channel.id),
                     "guild_id": str(guild.id),
                     "type": "forum" if isinstance(channel, discord.ForumChannel) else "text",
-                    "threads": [],
+                    "threads": thread_map.get(str(channel.id), []),
                     "available_tags": []
                 }
                 
@@ -373,14 +398,6 @@ async def explore_servers():
                         {"name": tag.name, "id": str(tag.id)} 
                         for tag in channel.available_tags
                     ]
-
-                # Fetch active threads
-                if hasattr(channel, 'threads'):
-                    for thread in channel.threads:
-                        chan_data["threads"].append({
-                            "name": thread.name,
-                            "id": str(thread.id)
-                        })
                 
                 guild_info["channels"].append(chan_data)
         
