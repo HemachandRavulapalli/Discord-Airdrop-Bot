@@ -270,20 +270,22 @@ async def get_channel_threads(channel_id: int):
                     threads.append({"name": t.name, "id": str(t.id)})
         except: pass
             
-        # Aggressively fetch archived threads (LIMIT 500)
+        # Aggressively fetch ALL archived threads (No Limit)
         # Scan Public Archives
         try:
-            async for t in channel.archived_threads(limit=500, public=True):
+            async for t in channel.archived_threads(limit=None, public=True):
                 if not any(x["id"] == str(t.id) for x in threads):
                     threads.append({"name": t.name, "id": str(t.id)})
-        except: pass
+        except Exception as e:
+            print(f"[Warning] Public archive scan failed for {channel.name}: {e}")
         
-        # Scan Private Archives (Crucial for older "Airdrop Logs" or private guides)
+        # Scan Private Archives
         try:
-            async for t in channel.archived_threads(limit=200, private=True):
+            async for t in channel.archived_threads(limit=None, private=True):
                 if not any(x["id"] == str(t.id) for x in threads):
                     threads.append({"name": t.name, "id": str(t.id)})
-        except: pass
+        except Exception as e:
+            print(f"[Warning] Private archive scan failed for {channel.name}: {e}")
                     
         print(f"📡 Found {len(threads)} threads for #{channel.name}")
         return threads
@@ -386,6 +388,7 @@ async def explore_servers():
         # Deep scan for active threads (fetching from API to be sure)
         thread_map = {}
         try:
+            # Fetch ALL active threads for the guild (live call)
             active_threads = await guild.active_threads()
             for thread in active_threads:
                 parent_id = str(thread.parent_id)
@@ -398,6 +401,11 @@ async def explore_servers():
         # Get Forums and Text Channels
         for channel in guild.channels:
             if isinstance(channel, (discord.TextChannel, discord.ForumChannel)):
+                # Skip if bot has no access
+                perms = channel.permissions_for(guild.me)
+                if not perms.view_channel:
+                    continue
+
                 chan_data = {
                     "name": channel.name,
                     "id": str(channel.id),

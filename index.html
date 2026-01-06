@@ -557,26 +557,28 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="section-title" style="justify-content: space-between;"><span>🛰️ Server Explorer</span><span
                     style="cursor:pointer" onclick="closeExplorer()">&times;</span></div>
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <input type="text" id="explorerSearch" placeholder="🔍 Search Channels & Posts..."
-                    oninput="filterExplorer()">
-                <button class="btn-primary" style="width:auto; padding:10px 20px; background:#238636"
-                    onclick="bulkAddFiltered()">➕ Add Selected</button>
-            </div>
             <div
-                style="display:flex; gap:10px; margin-bottom:15px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; align-items: center;">
-                <input type="text" id="manualChannelId" placeholder="📍 Paste Thread/Channel ID..."
-                    style="font-size: 0.85rem;">
+                style="display:flex; gap:10px; margin-bottom:15px; background: rgba(88, 101, 242, 0.05); padding: 15px; border-radius: 10px; border: 1px solid var(--accent-glow);">
+                <input type="text" id="explorerSearch" placeholder="🔍 Search Channels & Active Posts..."
+                    oninput="filterExplorer()" style="flex:1">
+                <button class="btn-primary" style="width:auto; padding:10px 20px; background:#238636"
+                    onclick="bulkAddFiltered()">📑 Add Checked</button>
+                <button class="btn-secondary" onclick="scanAllArchives()" id="scanAllBtn">🔍 Deep Scan All</button>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-bottom:15px; align-items: center; padding-left: 5px;">
+                <input type="text" id="manualChannelId" placeholder="📍 Find by ID (Thread/Post ID)"
+                    style="font-size: 0.85rem; flex:1">
                 <button class="btn-secondary" style="white-space:nowrap;" onclick="addManualThreadById()">📍 Find &
                     Add</button>
                 <div
                     style="margin-left:auto; display:flex; align-items:center; gap:10px; font-size:0.85rem; color:#8b949e">
                     <input type="checkbox" id="explorerSelectAll" class="explorer-check" onclick="toggleSelectAll()">
                     <label for="explorerSelectAll" style="margin:0; cursor:pointer; white-space:nowrap;">Select
-                        All</label>
+                        Visible</label>
                 </div>
             </div>
-            <div id="explorerResults"></div>
+            <div id="explorerResults" style="margin-top: 10px;"></div>
         </div>
 
         <script>
@@ -670,13 +672,14 @@
                     const guild = i.getAttribute('data-guild').toLowerCase();
                     const matches = name.includes(q) || guild.includes(q);
                     const isThread = i.classList.contains('explorer-thread');
-                    const isFetched = i.classList.contains('manually-fetched');
+                    const isManuallyFetched = i.classList.contains('manually-fetched');
 
                     if (!q) {
-                        // If no search, only show channels or manually fetched threads
-                        i.style.display = (isThread && !isFetched) ? 'none' : 'flex';
+                        // Reset: Show channels, Hide threads (unless it's a direct ID import which should stay visible)
+                        const isManualImport = i.getAttribute('data-name').startsWith('Imported ID') || i.getAttribute('data-name').startsWith('Manual ID');
+                        i.style.display = (isThread && !isManualImport) ? 'none' : 'flex';
                     } else {
-                        // During search, show anything that matches
+                        // Search Mode: Show anything matching the query
                         i.style.display = matches ? 'flex' : 'none';
                     }
                 });
@@ -688,37 +691,74 @@
             }
 
             async function fetchMoreThreads(cid, gn, gid, rs) {
-                const btn = event.target;
-                const originalText = btn.innerText;
-                btn.innerText = "⏳ Scanning...";
+                const btn = event ? event.target : null;
+                const originalText = btn ? btn.innerText : "";
+                if (btn) btn.innerText = "⏳ Scan...";
+
                 try {
                     const res = await fetch(`http://localhost:8000/threads/${cid}`);
                     const threads = await res.json();
-                    if (threads.length === 0) alert("No additional threads found for this channel.");
-                    document.getElementById(`extra-threads-${cid}`).innerHTML = threads.map(t => `<div class="discovery-item explorer-item explorer-thread manually-fetched" style="margin-left:30px; display:flex; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Thread)" data-guild="${gn}" data-guild-id="${gid}" data-roles="${rs}">
+
+                    const container = document.getElementById(`extra-threads-${cid}`);
+                    if (threads.length === 0) {
+                        if (!event) return; // Silent if batch
+                        alert("No additional threads found for this channel.");
+                    }
+
+                    container.innerHTML = threads.map(t => `<div class="discovery-item explorer-item explorer-thread manually-fetched" style="margin-left:30px; display:flex; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Thread)" data-guild="${gn}" data-guild-id="${gid}" data-roles="${rs}">
                     <input type="checkbox" class="explorer-check" onclick="event.stopPropagation()">
                     <div style="flex:1" onclick="addFoundChannel('${gn}', '${t.id}', '${t.name} (Thread)', [], ${rs}, '${gid}')"><b>↪ ${t.name}</b> <span class="tag-badge">THREAD</span></div>
                 </div>`).join('');
-                } catch (e) { alert("Search failed."); }
-                btn.innerText = originalText;
+
+                    if (event) filterExplorer();
+                } catch (e) {
+                    if (!event) return;
+                    alert("Search failed.");
+                }
+                if (btn) btn.innerText = originalText;
             }
 
-            async function addManualThreadById() {
-                const id = document.getElementById('manualChannelId').value.trim();
-                if (!id) return alert("Please paste a Thread or Channel ID");
-                try {
-                    // Try to find the roles for this channel to make it functional
-                    const res = await fetch(`http://localhost:8000/roles/${id}`);
-                    const roles = await res.json();
-                    const guildName = roles.length > 0 ? "Imported Server" : "External Server";
-                    const guildId = roles.length > 0 ? roles[0].guild_id : "";
-                    addFoundChannel(guildName, id, `Manual ID: ${id}`, [], roles, guildId);
-                    document.getElementById('manualChannelId').value = '';
-                } catch (e) {
-                    if (confirm("Could not find server details for this ID (Bot might not be in the server). Add anyway?")) {
-                        addFoundChannel("Unknown Server", id, `Imported ID: ${id}`, [], [], "");
-                    }
+            async function scanAllArchives() {
+                const channels = Array.from(document.querySelectorAll('.explorer-channel')).filter(i => i.style.display !== 'none');
+                const btn = document.getElementById('scanAllBtn');
+                const originalText = btn.innerText;
+
+                if (!confirm(`This will deep-scan archives for ${channels.length} channels. Continue?`)) return;
+
+                btn.disabled = true;
+                let count = 0;
+                for (const chan of channels) {
+                    count++;
+                    btn.innerText = `⏳ Scanning (${count}/${channels.length})...`;
+                    const id = chan.getAttribute('data-id');
+                    const gn = chan.getAttribute('data-guild');
+                    const gid = chan.getAttribute('data-guild-id');
+                    const rs = chan.getAttribute('data-roles');
+
+                    // Call fetch without event object to handle batch
+                    await fetchMoreThreadsBatch(id, gn, gid, rs);
+                    // Simple delay to avoid rate limits
+                    await new Promise(r => setTimeout(r, 100));
                 }
+                btn.innerText = originalText;
+                btn.disabled = false;
+                filterExplorer();
+                alert("Deep scan complete! All old posts are now searchable.");
+            }
+
+            async function fetchMoreThreadsBatch(cid, gn, gid, rs) {
+                try {
+                    const res = await fetch(`http://localhost:8000/threads/${cid}`);
+                    const threads = await res.json();
+                    const container = document.getElementById(`extra-threads-${cid}`);
+                    if (threads && threads.length > 0) {
+                        // Add threads as 'hidden' initially so they only appear during search
+                        container.innerHTML = threads.map(t => `<div class="discovery-item explorer-item explorer-thread archived-post" style="margin-left:30px; display:none; align-items:center; gap:12px;" data-id="${t.id}" data-name="${t.name} (Archived Post)" data-guild="${gn}" data-guild-id="${gid}" data-roles="${rs}">
+                        <input type="checkbox" class="explorer-check" onclick="event.stopPropagation()">
+                        <div style="flex:1" onclick="addFoundChannel('${gn}', '${t.id}', '${t.name} (Archived)', [], ${rs}, '${gid}')"><b>↪ ${t.name}</b> <span class="tag-badge" style="background:#4a3221">ARCHIVED</span></div>
+                    </div>`).join('');
+                    }
+                } catch (e) { }
             }
 
             function bulkAddFiltered() {
